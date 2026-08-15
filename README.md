@@ -1,32 +1,46 @@
-# NovaTech Concurrent Order Processing Simulation
+# NovaTech - Concurrent Order Processing Simulator
 
-This project simulates a concurrent order processing system for NovaTech. It uses Python's `threading` and `queue` modules to process multiple customer orders simultaneously while ensuring data consistency across shared resources like inventory and statistics.
+Simulation of a multi-threaded concurrent order processing system in Python, built for NovaTech to demonstrate thread safety, critical section protection, and performance gains without race conditions.
 
-## Project Structure
+## Description
+This application simulates a real-time order processing system for NovaTech, ensuring thread-safe inventory management and status monitoring.
 
-The project is organized into modular components:
+## Requirements & Environment
+- **Language:** Python 3.8+
+- **Libraries used:** Standard Library only (`threading`, `queue`, `time`, `random`)
+- **Tested OS:** Linux / macOS / Windows
 
-- **`main.py`**: The entry point of the application. It initializes the shared resources (inventory, statistics, order queue), spawns the worker and monitor threads, and waits for them to complete before printing a final summary.
-- **`core/`**: Contains the core logic and thread management classes.
-  - `inventory_manager.py`: Handles thread-safe inventory operations, ensuring no race conditions occur when multiple workers attempt to process items from the stock.
-  - `stats.py`: Manages a thread-safe `StatsManager` to keep track of approved, rejected, and failed orders.
-  - `worker.py`: Defines the `OrderWorker` thread class, which consumes orders from the shared queue, processes them through the inventory manager, and updates statistics.
-  - `monitor.py`: Defines the `SystemMonitor` thread class, which periodically outputs the current state of the simulation (pending orders, active workers, current stats).
-- **`data/`**: Contains the mock data used to run the simulation.
-  - `inventory.py`: Defines the initial product stock.
-  - `orders_data.py`: Defines the list of test cases (orders) to be processed, covering normal scenarios, high contention, out-of-stock, and malformed orders.
+## How to Run
 
-## How It Works
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/angelcc56/novatech-threads-simulation.git
+   cd novatech-threads-simulation
+   ```
 
-1. **Initialization**: The main script loads the initial inventory and populates a thread-safe FIFO queue with a predefined list of orders.
-2. **Execution**: It spawns multiple `OrderWorker` threads (usually 3) and 1 `SystemMonitor` thread.
-3. **Processing**: Each worker continuously fetches an order from the queue and tries to process it. Access to shared resources (like the `InventoryManager` and `StatsManager`) is protected by locks to prevent race conditions.
-4. **Completion**: Once the queue is empty, the workers finish their execution. The monitor thread is then safely stopped, and the main thread prints a comprehensive summary of the simulation results, validating that all invariants (e.g., no negative stock) held true.
+2. Execution options:
 
-## Running the Simulation
+   Run the concurrent simulation (this will also automatically run invariant and test checks at the end of the simulation):
+   ```bash
+   python main.py
+   ```
 
-Ensure you have Python 3 installed. You can run the simulation from the command line:
+## Concurrency Architecture & Synchronizations
 
-```bash
-python main.py
-```
+- **Main Thread:** Loads initial state, spawns 3 workers + 1 monitor, waits via `join()`, and reports final metrics along with test validations.
+- **Worker Threads (3x):** Process orders concurrently from a shared `queue.Queue`. Critical inventory modification is guarded by a `threading.Lock()` mutex.
+- **System Monitor Thread (1x):** Periodically logs pending orders, approved/rejected counters, and active worker count until signaled by a `threading.Event` token.
+- **Shared Resources:** 
+  - Inventory dict protected via `threading.Lock`
+  - Statistics counters protected via `threading.Lock`
+  - Order queue managed via thread-safe `queue.Queue`
+
+## Test Cases Summary
+
+| Test Case | Description | Expected & Verified Result |
+| :--- | :--- | :--- |
+| **CP-01** | Normal Flow | Valid orders processed and approved concurrently. |
+| **CP-02** | Contention | Multiple workers compete for P005 stock; stock never drops below 0. |
+| **CP-03** | Insufficient Stock | Orders exceeding stock (e.g., ORD-009) are rejected without stock deduction. |
+| **CP-04** | Invalid Order | Malformed orders (e.g., non-existent products, zero quantity) trigger safe errors without crash. |
+| **CP-05** | Clean Closure | All threads join properly with 0 active orphan threads remaining. |
